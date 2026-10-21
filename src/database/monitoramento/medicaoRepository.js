@@ -5,8 +5,21 @@ import database from "../../config/database.js";
 // ==========================================
 // REPOSITORY - MEDIÇÃO
 // ==========================================
+// Responsável pelas operações SQL da
+// tabela tbl_medicao.
+//
+// Alterações para o novo schema:
+// - id_ponto_medicao é obrigatório em
+//   tbl_medicao (denormalizado a partir
+//   do PZEM).
+// - Método buscarPontoMedicaoDoPzem
+//   resolve esse vínculo antes do INSERT.
 
 class MedicaoRepository {
+
+    // ======================================
+    // LISTAR TODAS AS MEDIÇÕES
+    // ======================================
 
     async listarTodas() {
 
@@ -28,7 +41,7 @@ class MedicaoRepository {
 
         const [resultado] = await database.query(
             `
-            SELECT id
+            SELECT id, id_ponto_medicao
             FROM tbl_pzem
             WHERE id = ?
             `,
@@ -42,6 +55,23 @@ class MedicaoRepository {
         return resultado[0];
     }
 
+
+    // ======================================
+    // RESOLVER PONTO DE MEDIÇÃO DO PZEM
+    // ======================================
+    // O novo schema exige id_ponto_medicao em
+    // tbl_medicao. Este método busca esse valor
+    // a partir do PZEM que enviou a leitura.
+
+    async buscarPontoMedicaoDoPzem(id_pzem) {
+
+        const [rows] = await database.query(
+            "SELECT id_ponto_medicao FROM tbl_pzem WHERE id = ?",
+            [id_pzem]
+        );
+
+        return rows[0] ?? null;
+    }
 
 
     // ==========================================
@@ -85,42 +115,40 @@ class MedicaoRepository {
 
 
     // ==========================================
-// CONSULTAR MEDIÇÕES PARA CÁLCULO DE CONSUMO
-// ==========================================
-// Busca as leituras de um PZEM dentro de um
-// período, mantendo a ordem cronológica.
+    // CONSULTAR MEDIÇÕES PARA CÁLCULO DE CONSUMO
+    // ==========================================
+    // Busca as leituras de um PZEM dentro de um
+    // período, mantendo a ordem cronológica.
 
-async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
+    async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
 
-    const [medicoes] = await database.query(
-        `
-        SELECT
-            id,
-            id_pzem,
-            data_hora,
-            energia_acumulada
-        FROM tbl_medicao
-        WHERE id_pzem = ?
-          AND data_hora >= ?
-          AND data_hora < DATE_ADD(?, INTERVAL 1 DAY)
-        ORDER BY data_hora ASC, id ASC
-        `,
-        [idPzem, inicio, fim]
-    );
+        const [medicoes] = await database.query(
+            `
+            SELECT
+                id,
+                id_pzem,
+                data_hora,
+                energia_acumulada
+            FROM tbl_medicao
+            WHERE id_pzem = ?
+              AND data_hora >= ?
+              AND data_hora < DATE_ADD(?, INTERVAL 1 DAY)
+            ORDER BY data_hora ASC, id ASC
+            `,
+            [idPzem, inicio, fim]
+        );
 
-    return medicoes;
-}
+        return medicoes;
+    }
 
 
     // ==========================================
     // CONSULTAR TARIFA VIGENTE DO PZEM
     // ==========================================
-    // Localiza a empresa proprietária do ponto
-    // de medição e procura uma tarifa ativa
-    // que cubra todo o período informado.
-    //
-    // Esta primeira versão exige uma única
-    // tarifa para todo o intervalo.
+    // Alteração para o novo schema:
+    // - A empresa não está mais apenas em tbl_local.
+    // - O ponto pode monitorar Local, Setor OU Equipamento.
+    // - Utilizamos COALESCE para resolver o caminho.
 
     async buscarTarifaParaPeriodo(idPzem, inicio, fim) {
 
@@ -133,14 +161,20 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
                 t.data_inicial,
                 t.data_final
             FROM tbl_tarifa t
-            INNER JOIN tbl_local l
-                ON l.id_empresa = t.id_empresa
-            INNER JOIN tbl_ponto_medicao pm
-                ON pm.id_local = l.id
-            INNER JOIN tbl_pzem p
-                ON p.id_ponto_medicao = pm.id
-            WHERE p.id = ?
-            AND t.status = 'ATIVA'
+            WHERE t.id_empresa = (
+                SELECT l.id_empresa
+                FROM tbl_pzem p
+                INNER JOIN tbl_ponto_medicao pm
+                    ON pm.id = p.id_ponto_medicao
+                LEFT JOIN tbl_equipamento e
+                    ON e.id = pm.id_equipamento
+                LEFT JOIN tbl_setor s
+                    ON s.id = COALESCE(pm.id_setor, e.id_setor)
+                LEFT JOIN tbl_local l
+                    ON l.id = COALESCE(pm.id_local, s.id_local)
+                WHERE p.id = ?
+            )
+            AND t.status = 'Ativa'
             AND t.data_inicial <= ?
             AND (
                 t.data_final IS NULL
@@ -158,11 +192,15 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
     // ======================================
     // CRIAR UMA NOVA MEDIÇÃO
     // ======================================
+    // O id_ponto_medicao é obrigatório
+    // e vem do Service (que resolve a partir
+    // do id_pzem).
 
     async criar(medicao) {
 
         const {
             id_pzem,
+            id_ponto_medicao,
             data_hora,
             tensao,
             corrente,
@@ -177,6 +215,7 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
             INSERT INTO tbl_medicao
             (
                 id_pzem,
+                id_ponto_medicao,
                 data_hora,
                 tensao,
                 corrente,
@@ -185,10 +224,11 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
                 frequencia,
                 fator_potencia
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             [
                 id_pzem,
+                id_ponto_medicao,
                 data_hora,
                 tensao,
                 corrente,
@@ -206,8 +246,6 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
     // ======================================
     // BUSCAR A ÚLTIMA MEDIÇÃO NO MYSQL
     // ======================================
-    // Consulta a tabela tbl_medicao e retorna
-    // apenas o registro com a data mais recente.
 
     async buscarUltima() {
 
@@ -227,12 +265,10 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
             LIMIT 1
         `);
 
-        // Se não houver registros, retorna null.
         if (resultado.length === 0) {
             return null;
         }
 
-        // Retorna o objeto da medição encontrada.
         return resultado[0];
     }
 
@@ -240,8 +276,6 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
     // ==========================================
     // CONSULTAR HISTÓRICO POR PZEM E PERÍODO
     // ==========================================
-    // Retorna as medições em ordem cronológica,
-    // permitindo a construção de gráficos.
 
     async obterSerieTemporal(idPzem, horas) {
 
@@ -271,9 +305,6 @@ async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
 
         return medicoes;
     }
-
-
-
 }
 
 

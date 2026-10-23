@@ -1,4 +1,5 @@
-
+// Importa o Repository responsável
+// pelas operações da tabela tbl_local.
 import localRepository from "../database/monitoramento/localRepository.js";
 
 // ==========================================
@@ -27,7 +28,20 @@ class LocalService {
     }
 
     // Valida e prepara os dados de um local.
-    async validarDados(dados) {
+    // O parâmetro "idAtual" serve para não
+    // conflitar com o próprio registro na edição.
+    async validarDados(dados, idAtual = null) {
+
+        // CÓDIGO
+        const codigo = dados?.codigo?.trim();
+
+        if (!codigo || codigo.length > 20) {
+            throw this.criarErro(
+                "O código deve conter entre 1 e 20 caracteres."
+            );
+        }
+
+        // NOME
         const nome = dados?.nome?.trim();
 
         if (!nome || nome.length > 100) {
@@ -36,42 +50,63 @@ class LocalService {
             );
         }
 
-        const descricao = dados.descricao ?? null;
+        // ENDEREÇO
+        const endereco = dados.endereco ?? null;
 
         if (
-            descricao !== null &&
-            (typeof descricao !== "string" ||
-             descricao.length > 255)
+            endereco !== null &&
+            (typeof endereco !== "string" ||
+             endereco.length > 255)
         ) {
-            throw this.criarErro("Descrição inválida.");
+            throw this.criarErro("Endereço inválido.");
         }
 
-        const status = dados.status ?? "ATIVO";
+        // RESPONSÁVEL
+        const responsavel = dados.responsavel ?? null;
 
-        if (!["ATIVO", "INATIVO"].includes(status)) {
+        if (
+            responsavel !== null &&
+            (typeof responsavel !== "string" ||
+             responsavel.length > 100)
+        ) {
+            throw this.criarErro("Responsável inválido.");
+        }
+
+        // STATUS
+        const status = dados.status ?? "Ativo";
+
+        if (!["Ativo", "Inativo"].includes(status)) {
             throw this.criarErro(
-                "O status deve ser ATIVO ou INATIVO."
+                "O status deve ser Ativo ou Inativo."
             );
         }
 
+        // EMPRESA
         const idEmpresa = this.validarId(dados.id_empresa);
 
-        // Impede associar o local a uma empresa inexistente.
-        const empresa =
-            await localRepository.buscarEmpresaPorId(idEmpresa);
+        const empresa = await localRepository.buscarEmpresaPorId(idEmpresa);
 
         if (!empresa) {
+            throw this.criarErro("Empresa não encontrada.", 404);
+        }
+
+        // CÓDIGO ÚNICO
+        const existente = await localRepository.buscarPorCodigo(codigo);
+
+        if (existente && existente.id !== idAtual) {
             throw this.criarErro(
-                "Empresa não encontrada.",
-                404
+                `Já existe um local com o código "${codigo}".`,
+                409
             );
         }
 
         return {
+            id_empresa: idEmpresa,
+            codigo,
             nome,
-            descricao,
-            status,
-            id_empresa: idEmpresa
+            endereco,
+            responsavel,
+            status
         };
     }
 
@@ -82,8 +117,7 @@ class LocalService {
 
     // Consulta um local específico.
     async buscarPorId(id) {
-        const local =
-            await localRepository.buscarPorId(this.validarId(id));
+        const local = await localRepository.buscarPorId(this.validarId(id));
 
         if (!local) {
             throw this.criarErro("Local não encontrado.", 404);
@@ -104,7 +138,7 @@ class LocalService {
 
         await this.buscarPorId(idValidado);
 
-        const local = await this.validarDados(dados);
+        const local = await this.validarDados(dados, idValidado);
 
         await localRepository.atualizar(idValidado, local);
 
@@ -117,14 +151,11 @@ class LocalService {
 
         await this.buscarPorId(idValidado);
 
-        if (!["ATIVO", "INATIVO"].includes(status)) {
+        if (!["Ativo", "Inativo"].includes(status)) {
             throw this.criarErro("Status inválido.");
         }
 
-        await localRepository.atualizarStatus(
-            idValidado,
-            status
-        );
+        await localRepository.atualizarStatus(idValidado, status);
 
         return localRepository.buscarPorId(idValidado);
     }

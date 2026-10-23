@@ -48,10 +48,6 @@ const database = mysql.createPool({
 });
 
 
-console.log("DB_HOST:", process.env.DB_HOST);
-console.log("DB_USER:", process.env.DB_USER);
-console.log("DB_NAME:", process.env.DB_NAME);
-
 // Exporta o pool para que os Repositories possam
 // utilizar a conexão com o MySQL.
 export default database;

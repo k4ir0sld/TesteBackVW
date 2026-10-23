@@ -1,4 +1,4 @@
-
+// Importa a conexão com o banco de dados MySQL.
 import database from "../../config/database.js";
 
 // ==========================================
@@ -6,6 +6,10 @@ import database from "../../config/database.js";
 // ==========================================
 // Responsável pelas operações SQL na
 // tabela tbl_setor.
+//
+// Alterações para o novo schema:
+// - Coluna "descricao" foi removida.
+// - Colunas "codigo" e "responsavel" foram adicionadas.
 
 class SetorRepository {
 
@@ -14,10 +18,11 @@ class SetorRepository {
         const [setores] = await database.query(`
             SELECT
                 s.id,
-                s.nome,
-                s.descricao,
-                s.status,
                 s.id_local,
+                s.codigo,
+                s.nome,
+                s.responsavel,
+                s.status,
                 l.nome AS nome_local
             FROM tbl_setor s
             INNER JOIN tbl_local l
@@ -34,10 +39,11 @@ class SetorRepository {
             `
             SELECT
                 s.id,
-                s.nome,
-                s.descricao,
-                s.status,
                 s.id_local,
+                s.codigo,
+                s.nome,
+                s.responsavel,
+                s.status,
                 l.nome AS nome_local
             FROM tbl_setor s
             INNER JOIN tbl_local l
@@ -54,12 +60,7 @@ class SetorRepository {
     async listarPorLocal(idLocal) {
         const [setores] = await database.query(
             `
-            SELECT
-                id,
-                nome,
-                descricao,
-                status,
-                id_local
+            SELECT id, id_local, codigo, nome, responsavel, status
             FROM tbl_setor
             WHERE id_local = ?
             ORDER BY nome ASC
@@ -84,19 +85,30 @@ class SetorRepository {
         return locais[0] ?? null;
     }
 
+    // Verifica se já existe um setor com o código informado.
+    async buscarPorCodigo(codigo) {
+        const [setores] = await database.query(
+            "SELECT id FROM tbl_setor WHERE codigo = ?",
+            [codigo]
+        );
+
+        return setores[0] ?? null;
+    }
+
     // Cadastra um setor.
     async criar(dados) {
         const [resultado] = await database.query(
             `
             INSERT INTO tbl_setor
-                (nome, descricao, status, id_local)
-            VALUES (?, ?, ?, ?)
+                (id_local, codigo, nome, responsavel, status)
+            VALUES (?, ?, ?, ?, ?)
             `,
             [
+                dados.id_local,
+                dados.codigo,
                 dados.nome,
-                dados.descricao,
-                dados.status,
-                dados.id_local
+                dados.responsavel,
+                dados.status
             ]
         );
 
@@ -108,17 +120,19 @@ class SetorRepository {
         const [resultado] = await database.query(
             `
             UPDATE tbl_setor
-            SET nome = ?,
-                descricao = ?,
-                status = ?,
-                id_local = ?
+            SET id_local = ?,
+                codigo = ?,
+                nome = ?,
+                responsavel = ?,
+                status = ?
             WHERE id = ?
             `,
             [
-                dados.nome,
-                dados.descricao,
-                dados.status,
                 dados.id_local,
+                dados.codigo,
+                dados.nome,
+                dados.responsavel,
+                dados.status,
                 id
             ]
         );

@@ -1,4 +1,4 @@
-
+// Importa a conexão com o banco de dados MySQL.
 import database from "../../config/database.js";
 
 // ==========================================
@@ -6,13 +6,17 @@ import database from "../../config/database.js";
 // ==========================================
 // Responsável pelas consultas SQL da tabela
 // tbl_local, utilizando parâmetros seguros.
+//
+// Alterações para o novo schema:
+// - Coluna "descricao" foi removida.
+// - Colunas "codigo", "endereco" e "responsavel" foram adicionadas.
 
 class LocalRepository {
 
     // Lista os locais cadastrados.
     async listarTodos() {
         const [locais] = await database.query(`
-            SELECT id, nome, descricao, status, id_empresa
+            SELECT id, id_empresa, codigo, nome, endereco, responsavel, status
             FROM tbl_local
             ORDER BY nome ASC
         `);
@@ -24,7 +28,7 @@ class LocalRepository {
     async buscarPorId(id) {
         const [locais] = await database.query(
             `
-            SELECT id, nome, descricao, status, id_empresa
+            SELECT id, id_empresa, codigo, nome, endereco, responsavel, status
             FROM tbl_local
             WHERE id = ?
             `,
@@ -44,19 +48,31 @@ class LocalRepository {
         return empresas[0] ?? null;
     }
 
+    // Verifica se já existe um local com o código informado.
+    async buscarPorCodigo(codigo) {
+        const [locais] = await database.query(
+            "SELECT id FROM tbl_local WHERE codigo = ?",
+            [codigo]
+        );
+
+        return locais[0] ?? null;
+    }
+
     // Insere um novo local.
     async criar(dados) {
         const [resultado] = await database.query(
             `
             INSERT INTO tbl_local
-                (nome, descricao, status, id_empresa)
-            VALUES (?, ?, ?, ?)
+                (id_empresa, codigo, nome, endereco, responsavel, status)
+            VALUES (?, ?, ?, ?, ?, ?)
             `,
             [
+                dados.id_empresa,
+                dados.codigo,
                 dados.nome,
-                dados.descricao,
-                dados.status,
-                dados.id_empresa
+                dados.endereco,
+                dados.responsavel,
+                dados.status
             ]
         );
 
@@ -68,17 +84,21 @@ class LocalRepository {
         const [resultado] = await database.query(
             `
             UPDATE tbl_local
-            SET nome = ?,
-                descricao = ?,
-                status = ?,
-                id_empresa = ?
+            SET id_empresa = ?,
+                codigo = ?,
+                nome = ?,
+                endereco = ?,
+                responsavel = ?,
+                status = ?
             WHERE id = ?
             `,
             [
-                dados.nome,
-                dados.descricao,
-                dados.status,
                 dados.id_empresa,
+                dados.codigo,
+                dados.nome,
+                dados.endereco,
+                dados.responsavel,
+                dados.status,
                 id
             ]
         );

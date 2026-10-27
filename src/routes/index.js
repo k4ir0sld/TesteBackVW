@@ -12,6 +12,8 @@ import localRoutes from "./localRoutes.js";
 // Importa as rotas do módulo de Setores.
 import setorRoutes from "./setorRoutes.js";
 
+// Importa as rotas de gerenciamento de equipamentos.
+import equipamentoRoutes from "./equipamentoRoutes.js";
 
 // ==========================================
 // ROTAS PRINCIPAIS DA API
@@ -34,6 +36,12 @@ router.use("/locais", localRoutes);
 // /setores serão encaminhadas para
 // o arquivo setorRoutes.js.
 router.use("/setores", setorRoutes);
+
+// ==========================================
+// ROTAS - EQUIPAMENTOS
+// ==========================================
+// Disponibiliza os endpoints em /api/equipamentos.
+router.use("/equipamentos", equipamentoRoutes);
 
 
 // ==========================================

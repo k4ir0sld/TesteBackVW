@@ -9,14 +9,12 @@ import localRepository from "../database/monitoramento/localRepository.js";
 
 class LocalService {
 
-    // Cria erros com código HTTP definido.
     criarErro(mensagem, status = 400) {
         const erro = new Error(mensagem);
         erro.status = status;
         return erro;
     }
 
-    // Valida um identificador positivo.
     validarId(valor) {
         const id = Number(valor);
 
@@ -27,9 +25,6 @@ class LocalService {
         return id;
     }
 
-    // Valida e prepara os dados de um local.
-    // O parâmetro "idAtual" serve para não
-    // conflitar com o próprio registro na edição.
     async validarDados(dados, idAtual = null) {
 
         // CÓDIGO
@@ -72,6 +67,17 @@ class LocalService {
             throw this.criarErro("Responsável inválido.");
         }
 
+        // DESCRIÇÃO
+        const descricao = dados.descricao ?? null;
+
+        if (
+            descricao !== null &&
+            (typeof descricao !== "string" ||
+             descricao.length > 255)
+        ) {
+            throw this.criarErro("Descrição inválida.");
+        }
+
         // STATUS
         const status = dados.status ?? "Ativo";
 
@@ -106,16 +112,15 @@ class LocalService {
             nome,
             endereco,
             responsavel,
+            descricao,
             status
         };
     }
 
-    // Lista todos os locais.
     async listarTodos() {
         return localRepository.listarTodos();
     }
 
-    // Consulta um local específico.
     async buscarPorId(id) {
         const local = await localRepository.buscarPorId(this.validarId(id));
 
@@ -126,13 +131,11 @@ class LocalService {
         return local;
     }
 
-    // Cadastra um novo local.
     async criar(dados) {
         const local = await this.validarDados(dados);
         return localRepository.criar(local);
     }
 
-    // Atualiza um local existente.
     async atualizar(id, dados) {
         const idValidado = this.validarId(id);
 
@@ -145,7 +148,6 @@ class LocalService {
         return localRepository.buscarPorId(idValidado);
     }
 
-    // Ativa ou desativa um local.
     async atualizarStatus(id, status) {
         const idValidado = this.validarId(id);
 

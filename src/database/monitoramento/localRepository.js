@@ -6,17 +6,14 @@ import database from "../../config/database.js";
 // ==========================================
 // Responsável pelas consultas SQL da tabela
 // tbl_local, utilizando parâmetros seguros.
-//
-// Alterações para o novo schema:
-// - Coluna "descricao" foi removida.
-// - Colunas "codigo", "endereco" e "responsavel" foram adicionadas.
 
 class LocalRepository {
 
     // Lista os locais cadastrados.
     async listarTodos() {
         const [locais] = await database.query(`
-            SELECT id, id_empresa, codigo, nome, endereco, responsavel, status
+            SELECT id, id_empresa, codigo, nome, endereco, responsavel,
+                   descricao, status
             FROM tbl_local
             ORDER BY nome ASC
         `);
@@ -28,7 +25,8 @@ class LocalRepository {
     async buscarPorId(id) {
         const [locais] = await database.query(
             `
-            SELECT id, id_empresa, codigo, nome, endereco, responsavel, status
+            SELECT id, id_empresa, codigo, nome, endereco, responsavel,
+                   descricao, status
             FROM tbl_local
             WHERE id = ?
             `,
@@ -63,8 +61,8 @@ class LocalRepository {
         const [resultado] = await database.query(
             `
             INSERT INTO tbl_local
-                (id_empresa, codigo, nome, endereco, responsavel, status)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (id_empresa, codigo, nome, endereco, responsavel, descricao, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             `,
             [
                 dados.id_empresa,
@@ -72,6 +70,7 @@ class LocalRepository {
                 dados.nome,
                 dados.endereco,
                 dados.responsavel,
+                dados.descricao,
                 dados.status
             ]
         );
@@ -89,6 +88,7 @@ class LocalRepository {
                 nome = ?,
                 endereco = ?,
                 responsavel = ?,
+                descricao = ?,
                 status = ?
             WHERE id = ?
             `,
@@ -98,6 +98,7 @@ class LocalRepository {
                 dados.nome,
                 dados.endereco,
                 dados.responsavel,
+                dados.descricao,
                 dados.status,
                 id
             ]

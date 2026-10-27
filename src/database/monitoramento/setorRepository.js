@@ -6,14 +6,9 @@ import database from "../../config/database.js";
 // ==========================================
 // Responsável pelas operações SQL na
 // tabela tbl_setor.
-//
-// Alterações para o novo schema:
-// - Coluna "descricao" foi removida.
-// - Colunas "codigo" e "responsavel" foram adicionadas.
 
 class SetorRepository {
 
-    // Lista os setores com o nome do local.
     async listarTodos() {
         const [setores] = await database.query(`
             SELECT
@@ -22,6 +17,7 @@ class SetorRepository {
                 s.codigo,
                 s.nome,
                 s.responsavel,
+                s.descricao,
                 s.status,
                 l.nome AS nome_local
             FROM tbl_setor s
@@ -33,7 +29,6 @@ class SetorRepository {
         return setores;
     }
 
-    // Consulta um setor específico.
     async buscarPorId(id) {
         const [setores] = await database.query(
             `
@@ -43,6 +38,7 @@ class SetorRepository {
                 s.codigo,
                 s.nome,
                 s.responsavel,
+                s.descricao,
                 s.status,
                 l.nome AS nome_local
             FROM tbl_setor s
@@ -56,11 +52,10 @@ class SetorRepository {
         return setores[0] ?? null;
     }
 
-    // Consulta os setores pertencentes a um local.
     async listarPorLocal(idLocal) {
         const [setores] = await database.query(
             `
-            SELECT id, id_local, codigo, nome, responsavel, status
+            SELECT id, id_local, codigo, nome, responsavel, descricao, status
             FROM tbl_setor
             WHERE id_local = ?
             ORDER BY nome ASC
@@ -71,7 +66,6 @@ class SetorRepository {
         return setores;
     }
 
-    // Confere se o local existe.
     async buscarLocalPorId(idLocal) {
         const [locais] = await database.query(
             `
@@ -85,7 +79,6 @@ class SetorRepository {
         return locais[0] ?? null;
     }
 
-    // Verifica se já existe um setor com o código informado.
     async buscarPorCodigo(codigo) {
         const [setores] = await database.query(
             "SELECT id FROM tbl_setor WHERE codigo = ?",
@@ -95,19 +88,19 @@ class SetorRepository {
         return setores[0] ?? null;
     }
 
-    // Cadastra um setor.
     async criar(dados) {
         const [resultado] = await database.query(
             `
             INSERT INTO tbl_setor
-                (id_local, codigo, nome, responsavel, status)
-            VALUES (?, ?, ?, ?, ?)
+                (id_local, codigo, nome, responsavel, descricao, status)
+            VALUES (?, ?, ?, ?, ?, ?)
             `,
             [
                 dados.id_local,
                 dados.codigo,
                 dados.nome,
                 dados.responsavel,
+                dados.descricao,
                 dados.status
             ]
         );
@@ -115,7 +108,6 @@ class SetorRepository {
         return resultado.insertId;
     }
 
-    // Atualiza um setor.
     async atualizar(id, dados) {
         const [resultado] = await database.query(
             `
@@ -124,6 +116,7 @@ class SetorRepository {
                 codigo = ?,
                 nome = ?,
                 responsavel = ?,
+                descricao = ?,
                 status = ?
             WHERE id = ?
             `,
@@ -132,6 +125,7 @@ class SetorRepository {
                 dados.codigo,
                 dados.nome,
                 dados.responsavel,
+                dados.descricao,
                 dados.status,
                 id
             ]
@@ -140,7 +134,6 @@ class SetorRepository {
         return resultado.affectedRows > 0;
     }
 
-    // Ativa ou desativa um setor.
     async atualizarStatus(id, status) {
         const [resultado] = await database.query(
             `

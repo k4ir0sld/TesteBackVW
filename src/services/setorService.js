@@ -10,14 +10,12 @@ import setorRepository from "../database/monitoramento/setorRepository.js";
 
 class SetorService {
 
-    // Cria erros com códigos HTTP.
     criarErro(mensagem, status = 400) {
         const erro = new Error(mensagem);
         erro.status = status;
         return erro;
     }
 
-    // Valida IDs recebidos nas requisições.
     validarId(valor) {
         const id = Number(valor);
 
@@ -28,7 +26,6 @@ class SetorService {
         return id;
     }
 
-    // Valida os campos do setor.
     async validarDados(dados, idAtual = null) {
 
         // CÓDIGO
@@ -60,6 +57,17 @@ class SetorService {
              responsavel.length > 100)
         ) {
             throw this.criarErro("Responsável inválido.");
+        }
+
+        // DESCRIÇÃO
+        const descricao = dados.descricao ?? null;
+
+        if (
+            descricao !== null &&
+            (typeof descricao !== "string" ||
+             descricao.length > 255)
+        ) {
+            throw this.criarErro("Descrição inválida.");
         }
 
         // STATUS
@@ -101,16 +109,15 @@ class SetorService {
             codigo,
             nome: dados.nome.trim(),
             responsavel,
+            descricao,
             status
         };
     }
 
-    // Lista todos os setores.
     async listarTodos() {
         return setorRepository.listarTodos();
     }
 
-    // Busca um setor pelo ID.
     async buscarPorId(id) {
         const setor = await setorRepository.buscarPorId(this.validarId(id));
 
@@ -121,7 +128,6 @@ class SetorService {
         return setor;
     }
 
-    // Lista os setores de determinado local.
     async listarPorLocal(idLocal) {
         const id = this.validarId(idLocal);
 
@@ -134,13 +140,11 @@ class SetorService {
         return setorRepository.listarPorLocal(id);
     }
 
-    // Cadastra um novo setor.
     async criar(dados) {
         const setor = await this.validarDados(dados);
         return setorRepository.criar(setor);
     }
 
-    // Atualiza os dados de um setor.
     async atualizar(id, dados) {
         const idValidado = this.validarId(id);
 
@@ -153,7 +157,6 @@ class SetorService {
         return setorRepository.buscarPorId(idValidado);
     }
 
-    // Altera o status de um setor.
     async atualizarStatus(id, status) {
         const idValidado = this.validarId(id);
 
